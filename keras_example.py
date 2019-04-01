@@ -67,13 +67,35 @@ auxiliary_output = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
 
 auxiliary_input = Input(shape=(5,), name='aux_input')
 x = keras.layers.concatenate([lstm_out, auxiliary_input])
-#연결해줌
+#연결해줌(concatenate(merge))
 #5+32=37짜리 벡터
 
 # We stack a deep densely-connected network on top
 x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
 x = Dense(64, activation='relu')(x)
+#연결한 것 위해 fully connected
+
+##---지금까지 신경망 구조를 정해줌--
 
 # And finally we add the main logistic regression layer
 main_output = Dense(1, activation='sigmoid', name='main_output')(x)
+
+#모델을 만든다. input이 들어올 곳
+model = Model(inputs=[main_input, auxiliary_input], outputs=[main_output, auxiliary_output])
+#생성한 모델을 컴파일 & fit(model training)
+model.compile(optimizer='rmsprop', loss='binary_crossentropy',
+              loss_weights=[1., 0.2])
+#두군데에 같은 loss function을 사용함. sigmoid할 때는 대부분 binary crossentropy를 사용한다.
+
+model.fit([headline_data, additional_data], [labels, labels],
+          epochs=50, batch_size=32)
+
+model.compile(optimizer='rmsprop',
+              loss={'main_output': 'binary_crossentropy', 'aux_output': 'binary_crossentropy'},
+              loss_weights={'main_output': 1., 'aux_output': 0.2})
+
+# And trained it via:
+model.fit({'main_input': headline_data, 'aux_input': additional_data},
+          {'main_output': labels, 'aux_output': labels},
+          epochs=50, batch_size=32)
