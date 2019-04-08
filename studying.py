@@ -270,3 +270,37 @@ main_input = Input(shape=(100,), dtype='int32', name='main_input')
 
 # This embedding layer will encode the input sequence
 # into a sequence of dense 512-dimensional vectors
+x = Embedding(output_dim=512, input_dim=10000, input_length=100)(main_input)
+
+# A LSTM will transform the vector sequence into a single vector,
+# containing information about the entire sequence
+# 모든 시퀀스의 정보를 가지고 있는 single vector로 transform 해주는 애가 LSTM
+lstm_out = LSTM(32)(x)
+
+# 여기에 우리는 부가적인 loss를 집어넣는다. 모델에서 loss를 줄인다.
+auxiliary_output = Dense(1, activation='sigmoid', name='aux_output')(lstm_out)
+# LSTM output과 연결!
+
+auxiliary_input = Input(shape=(5, ), name='aux_input')
+x = keras.layers.concatenate([lstm_out, auxiliary_input])
+# We stack a deep densely-connected network on top
+x = Dense(64, activation='relu')(x)
+x = Dense(64, activation='relu')(x)
+x = Dense(64, activation='relu')(x)
+# layer을 추가한다. 많이
+
+# And finally we add the main logistic regression layer
+main_output = Dense(1, activation='sigmoid', name='main_output')(x)
+
+# 이것은 두 개의 input, output 모델을 만든 것이다.
+# functional API를 이용하여 multi- 모델을 만들었음.
+model = Model(inputs=[main_input, auxiliary_input], outputs=[main_output, auxiliary_output])
+
+# 부가 loss function에 0.2의 가중치를 두고 학습시킨다(compile)
+# 다른 loss 가중치나 loss를 각각의 다른 output에 주기 위해 우리는 딕셔너리나 list를 쓴다.
+model.compile(optimizer='rmsprop', loss='binary_crossentropy',
+              loss_weights=[1., 0.2])
+# 여기서는 하나의 loss를 쓴다. 같은 loss가 쓰임
+
+model.fit([headline_data, additional_data], [labels, labels],
+          epochs=50, batch_size=32) # training
